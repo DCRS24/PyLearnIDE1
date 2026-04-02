@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PyLearn IDE</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --bg: #0e0e0e; --panel: #141414; --border: #2a2a2a;
+  --accent: #007acc; --text: #d4d4d4; --dim: #555;
+  --bright: #fff; --green: #4ec9b0; --red: #f44747;
+  --yellow: #d7ba7d; --success: #4ec94e; --linenum: #3a3a3a;
+  --kw: #569cd6; --str: #ce9178; --comment: #6a9955; --num: #b5cea8; --fn: #dcdcaa;
+}
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; }
+#app { display: flex; flex-direction: column; height: 100vh; }
+button { cursor: pointer; font-family: inherit; }
+
+/* Header */
+#header { display:flex; align-items:center; height:44px; background:#111; border-bottom:1px solid var(--border); padding:0 12px; gap:8px; flex-shrink:0; }
+#header .logo { font-size:18px; }
+#header .title { color:var(--bright); font-weight:800; font-size:15px; }
+#header .spacer { flex:1; }
+#py-status { display:flex; align-items:center; gap:4px; }
+#py-dot { width:7px; height:7px; border-radius:50%; background:var(--yellow); }
+#py-label { font-size:9px; color:var(--dim); }
+#progress-bar { width:50px; height:4px; background:var(--border); border-radius:2px; overflow:hidden; }
+#progress-fill { height:100%; background:var(--accent); border-radius:2px; transition:width .5s; }
+#progress-pct { font-size:10px; color:var(--accent); }
+
+/* Body */
+#body { flex:1; overflow:hidden; display:flex; flex-direction:column; }
+
+/* Bottom Nav */
+#nav { display:flex; background:#111; border-top:1px solid var(--border); flex-shrink:0; }
+.nav-btn { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:7px 2px; background:none; border:none; color:var(--dim); font-size:9.5px; font-weight:400; border-top:2px solid transparent; }
+.nav-btn.active { color:var(--accent); font-weight:700; border-top-color:var(--accent); }
+.nav-btn .icon { font-size:19px; }
+
+/* Tabs/Panels */
+.tab-panel { display:none; flex:1; flex-direction:column; overflow:hidden; }
+.tab-panel.active { display:flex; }
+
+/* ── CODE TAB ── */
+#file-tabs { display:flex; align-items:center; overflow-x:auto; height:32px; background:#0f0f0f; border-bottom:1px solid var(--border); }
+.file-tab { display:flex; align-items:center; gap:5px; padding:0 10px; height:100%; border-right:1px solid var(--border); cursor:pointer; white-space:nowrap; background:transparent; border-bottom:2px solid transparent; }
+.file-tab.active { background:var(--bg); border-bottom-color:var(--accent); }
+.file-tab span { font-size:11.5px; color:var(--dim); }
+.file-tab.active span { color:var(--bright); }
+.file-tab .close-btn { font-size:10px; color:var(--dim); background:none; border:none; padding:0 2px; }
+#new-file-btn { padding:0 12px; background:none; border:none; color:var(--dim); font-size:16px; flex-shrink:0; }
+
+#toolbar { display:flex; gap:5px; padding:4px 8px; background:#0f0f0f; align-items:center; border-bottom:1px solid var(--border); }
+.tool-btn { padding:3px 9px; background:#1a1a1a; border:1px solid var(--border); border-radius:4px; color:var(--dim); font-size:11px; }
+#line-count { font-size:9.5px; color:var(--dim); margin-left:auto; }
+
+#editor-wrap { flex:1; position:relative; overflow:hidden; min-height:0; }
+#highlight-layer { position:absolute; inset:0; padding:9px 9px 9px 44px; overflow:auto; pointer-events:none; background:#080808; line-height:1.55em; white-space:pre; }
+#code-editor { position:absolute; inset:0; width:100%; height:100%; background:transparent; color:transparent; caret-color:#aeafad; font-family:monospace; font-size:13px; line-height:1.55em; padding:9px 9px 9px 44px; border:none; outline:none; resize:none; z-index:2; white-space:pre; overflow:auto; -webkit-user-select:text; }
+#line-numbers { position:absolute; left:0; top:0; width:38px; background:#060606; border-right:1px solid var(--border); pointer-events:none; padding:9px 0; z-index:3; overflow:hidden; bottom:0; }
+.ln { height:1.55em; line-height:1.55em; text-align:right; padding-right:7px; font-size:11.5px; color:var(--linenum); font-family:monospace; }
+
+#run-bar { padding:5px 8px; background:#0f0f0f; border-top:1px solid var(--border); display:flex; gap:5px; align-items:center; flex-shrink:0; }
+#run-btn { flex:1; padding:9px; background:#0d1a0d; border:1px solid #2d6a2d; border-radius:6px; color:var(--success); font-weight:700; font-size:13px; }
+#run-btn:disabled { color:#4a7a4a; border-color:#2a4a2a; }
+
+/* Terminal */
+#terminal { background:#060606; border-top:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; }
+#term-handle { height:20px; background:#0a0a0a; border-bottom:1px solid var(--border); cursor:ns-resize; display:flex; align-items:center; justify-content:space-between; padding:0 9px; user-select:none; }
+#term-title { font-size:9.5px; color:var(--dim); font-weight:700; text-transform:uppercase; letter-spacing:1px; display:flex; align-items:center; gap:6px; }
+#term-status { font-size:9px; }
+#term-output { flex:1; overflow-y:auto; padding:5px 9px 2px; display:flex; flex-direction:column; gap:1px; }
+.term-line { margin:0; font-family:monospace; font-size:12px; white-space:pre-wrap; line-height:1.5; }
+.term-out { color:#7ec87e; }
+.term-err { color:var(--red); }
+.term-cmd { color:var(--accent); }
+.term-info { color:var(--dim); }
+#term-input-row { display:flex; align-items:center; padding:4px 9px 5px; border-top:1px solid #ffffff08; background:#080808; flex-shrink:0; gap:5px; }
+#term-prompt { color:var(--accent); font-family:monospace; font-size:13px; font-weight:700; flex-shrink:0; }
+#term-input { flex:1; background:transparent; border:none; outline:none; color:var(--text); font-family:monospace; font-size:12.5px; caret-color:var(--accent); -webkit-user-select:text; }
+#term-send { background:none; border:none; color:var(--accent); font-size:14px; padding:0 2px; }
+
+/* Chart image in terminal */
+.term-chart { max-width:100%; border-radius:5px; border:1px solid var(--border); margin:4px 0; }
+
+/* ── LEARN TAB ── */
+#learn-panel { overflow-y:auto; }
+#search-wrap { padding:10px 11px 6px; }
+#lesson-search { width:100%; background:#111; border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px; outline:none; }
+#progress-card { margin:0 11px 10px; background:#0a1520; border:1px solid #1a3050; border-radius:9px; padding:10px 13px; }
+#progress-card .title { color:var(--bright); font-weight:700; font-size:13px; margin-bottom:3px; }
+#progress-card .sub { color:var(--dim); font-size:11px; }
+#learn-progress-bar { height:4px; background:var(--border); border-radius:2px; overflow:hidden; margin:8px 0 3px; }
+#learn-progress-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--green)); border-radius:2px; transition:width .5s; }
+.cat-divider { padding:7px 11px 4px; font-size:9.5px; color:var(--dim); font-weight:700; letter-spacing:1px; text-transform:uppercase; display:flex; align-items:center; gap:5px; }
+.cat-line { flex:1; height:1px; background:var(--border); }
+.lesson-row { display:flex; align-items:center; gap:9px; padding:11px; border-bottom:1px solid #2a2a2a18; cursor:pointer; }
+.lesson-icon { width:34px; height:34px; background:#111; border:1px solid var(--border); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+.lesson-icon.done { background:#007acc18; border-color:var(--accent); }
+.lesson-info { flex:1; }
+.lesson-title { color:var(--bright); font-weight:600; font-size:13px; }
+.lesson-title.done { color:var(--accent); }
+.lesson-desc { color:var(--dim); font-size:11px; margin-top:1px; }
+.lesson-arrow { color:var(--dim); font-size:15px; }
+
+/* Lesson detail */
+#lesson-detail { display:none; flex-direction:column; height:100vh; }
+#lesson-detail.active { display:flex; }
+#lesson-hdr { display:flex; align-items:center; height:44px; background:#111; border-bottom:1px solid var(--border); padding:0 10px; gap:7px; flex-shrink:0; }
+#back-btn { background:none; border:none; color:var(--accent); font-size:20px; padding:4px; }
+#lesson-content { flex:1; overflow-y:auto; padding:14px 13px 24px; }
+.section-label { font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-bottom:7px; }
+.theory-text { color:var(--text); font-size:14px; line-height:1.75; margin-bottom:16px; }
+.code-block { background:#080808; border:1px solid var(--border); border-radius:8px; overflow:auto; margin-bottom:14px; }
+.code-block-hdr { padding:5px 12px; border-bottom:1px solid var(--border); background:#0f0f0f; font-size:10px; color:var(--dim); display:flex; justify-content:space-between; }
+.code-block-body { padding:10px 6px; }
+.output-block { background:#070d07; border:1px solid #1a3a1a; border-radius:8px; padding:10px 13px; font-family:monospace; font-size:12.5px; color:#7ec87e; white-space:pre-wrap; margin-bottom:14px; }
+.tip-item { display:flex; gap:8px; padding:9px 11px; margin-bottom:6px; background:#0f0f0f; border:1px solid var(--border); border-radius:7px; font-size:13px; line-height:1.5; }
+.tip-arrow { color:var(--yellow); flex-shrink:0; }
+.lesson-btns { display:flex; gap:8px; margin-top:16px; }
+.try-btn { flex:2; padding:13px; background:var(--accent); border:none; border-radius:9px; color:#fff; font-size:13.5px; font-weight:700; }
+.next-btn { flex:1; padding:13px; background:#1a2a1a; border:1px solid #2a5a2a; border-radius:9px; color:var(--success); font-size:13px; font-weight:700; }
+
+/* ── AI TAB ── */
+#ai-panel { overflow:hidden; }
+#chat-msgs { flex:1; overflow-y:auto; padding:11px 10px; display:flex; flex-direction:column; gap:9px; }
+.chat-msg { display:flex; gap:7px; align-items:flex-end; }
+.chat-msg.user { flex-direction:row-reverse; }
+.chat-avatar { width:24px; height:24px; background:#007acc22; border:1px solid var(--accent); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0; }
+.chat-bubble { max-width:84%; padding:8px 11px; font-size:13px; line-height:1.65; }
+.chat-bubble.bot { border-radius:3px 12px 12px 12px; background:#1a1a1a; border:1px solid var(--border); color:var(--text); }
+.chat-bubble.user { border-radius:12px 12px 3px 12px; background:var(--accent); color:#fff; border:1px solid var(--accent); }
+.chat-bubble code { background:#080808; padding:1px 5px; border-radius:3px; color:var(--green); font-family:monospace; font-size:12px; }
+.chat-bubble pre { background:#080808; border:1px solid var(--border); border-radius:6px; padding:8px 10px; margin:5px 0; overflow-x:auto; }
+.chat-bubble pre code { background:none; padding:0; color:var(--text); font-size:12px; }
+#quick-prompts { padding:0 9px 7px; display:flex; gap:5px; flex-wrap:wrap; }
+.quick-btn { background:#0d1520; border:1px solid #1a3050; color:var(--accent); padding:5px 9px; border-radius:13px; font-size:11px; }
+#chat-input-row { padding:6px 9px 10px; background:#0f0f0f; border-top:1px solid var(--border); display:flex; gap:6px; align-items:flex-end; flex-shrink:0; }
+#chat-input { flex:1; background:#1a1a1a; border:1px solid var(--border); border-radius:16px; padding:8px 12px; color:var(--text); font-size:13px; outline:none; resize:none; font-family:inherit; max-height:80px; overflow-y:auto; }
+#chat-send { width:36px; height:36px; background:var(--accent); border:none; border-radius:50%; color:#fff; font-size:14px; flex-shrink:0; }
+#chat-send:disabled { background:var(--border); }
+
+/* ── QUIZ TAB ── */
+#quiz-panel { overflow-y:auto; }
+#quiz-content { padding:13px 12px; }
+.quiz-progress-row { display:flex; justify-content:space-between; margin-bottom:9px; font-size:12px; }
+.quiz-progress-row .q-label { color:var(--dim); }
+.quiz-progress-row .q-score { color:var(--accent); }
+#quiz-bar { height:3px; background:var(--border); border-radius:2px; margin-bottom:14px; overflow:hidden; }
+#quiz-bar-fill { height:100%; background:var(--accent); border-radius:2px; transition:width .4s; }
+#quiz-question-card { background:#0a1520; border:1px solid #007acc22; border-radius:9px; padding:13px; margin-bottom:14px; }
+#quiz-question-text { font-size:14.5px; font-weight:700; color:var(--bright); line-height:1.5; }
+#quiz-options { display:flex; flex-direction:column; gap:7px; margin-bottom:14px; }
+.quiz-opt { padding:11px 13px; background:#111; border:1.5px solid var(--border); border-radius:8px; color:var(--text); font-size:13.5px; display:flex; gap:9px; align-items:center; transition:all .18s; }
+.quiz-opt.correct { background:#0a1a0a; border-color:var(--success); color:var(--success); }
+.quiz-opt.wrong { background:#1a0a0a; border-color:var(--red); color:var(--red); }
+.quiz-opt-circle { width:20px; height:20px; border-radius:50%; border:1.5px solid currentColor; display:flex; align-items:center; justify-content:center; font-size:10.5px; flex-shrink:0; }
+#quiz-explanation { background:#0a1a1a; border:1px solid #1a3a3a; border-radius:8px; padding:9px 11px; margin-bottom:12px; }
+#quiz-exp-label { font-size:9.5px; color:var(--green); font-weight:700; margin-bottom:2px; }
+#quiz-exp-text { font-size:13px; color:var(--text); line-height:1.5; }
+#quiz-next-btn { width:100%; padding:11px; background:var(--accent); border:none; border-radius:8px; color:#fff; font-size:13.5px; font-weight:700; }
+#quiz-done { text-align:center; padding-top:14px; }
+#quiz-done .big-icon { font-size:52px; margin-bottom:10px; }
+#quiz-done h2 { color:var(--bright); margin-bottom:5px; }
+#score-circle { width:90px; height:90px; border-radius:50%; margin:10px auto 14px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+#score-pct { font-size:22px; font-weight:800; }
+#score-frac { font-size:10px; color:var(--dim); }
+#quiz-done p { color:var(--text); font-size:13.5px; margin-bottom:18px; }
+.quiz-done-btn { padding:11px 22px; border-radius:8px; font-size:13.5px; font-weight:700; margin:0 4px; }
+
+/* Pkg Manager Modal */
+#pkg-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:200; flex-direction:column; justify-content:flex-end; }
+#pkg-modal.open { display:flex; }
+#pkg-sheet { background:#141414; border:1px solid var(--border); border-radius:14px 14px 0 0; max-height:82vh; display:flex; flex-direction:column; }
+#pkg-sheet-hdr { display:flex; align-items:center; justify-content:space-between; padding:13px 14px; border-bottom:1px solid var(--border); }
+#pkg-sheet-hdr span { color:var(--bright); font-weight:700; font-size:14px; }
+.close-modal-btn { background:none; border:none; color:var(--dim); font-size:20px; }
+#pkg-body { overflow-y:auto; flex:1; padding:12px 13px; }
+.pkg-section-label { font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-bottom:7px; }
+#pip-row { display:flex; gap:7px; margin-bottom:10px; }
+#pip-input { flex:1; background:#0d0d0d; border:1px solid var(--border); border-radius:7px; padding:8px 11px; color:var(--text); font-size:13px; outline:none; font-family:monospace; }
+#pip-install-btn { padding:8px 14px; background:var(--accent); border:none; border-radius:7px; color:#fff; font-weight:700; font-size:12.5px; }
+#pip-log { margin-bottom:10px; }
+.pip-log-line { font-family:monospace; font-size:12px; margin-bottom:3px; }
+.pkg-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-bottom:14px; }
+.pkg-card { background:#0d0d0d; border:1px solid var(--border); border-radius:8px; padding:8px 9px; display:flex; align-items:center; gap:7px; }
+.pkg-card.installed { border-color:#2a5a2a; }
+.pkg-card-icon { font-size:15px; }
+.pkg-card-info { flex:1; }
+.pkg-card-name { font-size:12px; font-weight:600; color:var(--text); }
+.pkg-card-name.installed { color:var(--success); }
+.pkg-card-desc { font-size:10px; color:var(--dim); }
+.pkg-load-btn { background:#1a2a3a; border:1px solid #1a3a5a; border-radius:5px; padding:3px 8px; color:var(--accent); font-size:10.5px; font-weight:600; }
+.pkg-load-btn.loaded { background:#1a3a1a; border-color:#2a5a2a; color:var(--success); }
+#installed-list { display:flex; flex-wrap:wrap; gap:5px; }
+.installed-badge { background:#0d1a0d; border:1px solid #2a4a2a; border-radius:14px; padding:2px 9px; font-size:11.5px; color:var(--success); }
+.note-box { margin-top:14px; padding:9px 11px; background:#0d0d1a; border:1px solid #1a1a3a; border-radius:7px; font-size:11px; color:var(--dim); line-height:1.6; }
+
+/* Tpl Modal */
+#tpl-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:200; flex-direction:column; justify-content:flex-end; }
+#tpl-modal.open { display:flex; }
+#tpl-sheet { background:#141414; border:1px solid var(--border); border-radius:14px 14px 0 0; max-height:72vh; display:flex; flex-direction:column; }
+#tpl-sheet-hdr { display:flex; align-items:center; justify-content:space-between; padding:13px 14px; border-bottom:1px solid var(--border); }
+#tpl-sheet-hdr span { color:var(--bright); font-weight:700; font-size:14px; }
+#tpl-grid { overflow-y:auto; padding:10px 11px 18px; display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+.tpl-card { background:#0d0d0d; border:1px solid var(--border); border-radius:9px; padding:11px; cursor:pointer; }
+.tpl-icon { font-size:22px; margin-bottom:5px; }
+.tpl-name { color:var(--bright); font-weight:600; font-size:12.5px; margin-bottom:2px; }
+.tpl-file { color:var(--dim); font-size:10.5px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- LESSON DETAIL (full-screen overlay) -->
+  <div id="lesson-detail">
+    <div id="lesson-hdr">
+      <button id="back-btn" onclick="closeLesson()">←</button>
+      <span id="lesson-icon-hdr" style="font-size:17px">🐍</span>
+      <div style="flex:1">
+        <div id="lesson-title-hdr" style="color:var(--bright);font-weight:700;font-size:13px"></div>
+        <div id="lesson-cat-hdr" style="color:var(--dim);font-size:10px"></div>
+      </div>
+      <span id="lesson-status-badge" style="font-size:10px;background:#007acc22;color:var(--accent);padding:2px 8px;border-radius:10px"></span>
+    </div>
+    <div id="lesson-content"></div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="main-app">
+    <!-- Header -->
+    <div id="header">
+      <span class="logo">🐍</span>
+      <span class="title">PyLearn IDE</span>
+      <div class="spacer"></div>
+      <div id="progress-bar"><div id="progress-fill" style="width:0%"></div></div>
+      <span id="progress-pct">0%</span>
+      <div id="py-status">
+        <div id="py-dot"></div>
+        <span id="py-label">Loading...</span>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div id="body">
+
+      <!-- CODE TAB -->
+      <div id="code-panel" class="tab-panel active">
+        <div id="file-tabs">
+          <!-- Dynamically populated -->
+        </div>
+        <div id="toolbar">
+          <button class="tool-btn" onclick="showTpl()">📁 Templates</button>
+          <button class="tool-btn" onclick="showPkg()">📦 pip</button>
+          <span id="line-count">1 line</span>
+        </div>
+        <div id="editor-wrap">
+          <div id="highlight-layer"></div>
+          <textarea id="code-editor" spellcheck="false" autocorrect="off" autocapitalize="none" autocomplete="off"
+            oninput="onEditorInput()" onscroll="syncScroll()"></textarea>
+          <div id="line-numbers"></div>
+        </div>
+        <div id="run-bar">
+          <button id="run-btn" onclick="runCode()">▶  Run Python</button>
+        </div>
+        <!-- Terminal -->
+        <div id="terminal">
+          <div id="term-handle" id="term-drag-handle">
+            <div id="term-title">
+              <span>⠿</span>
+              <span>TERMINAL</span>
+              <span id="term-status" style="color:var(--success)">● ready</span>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span style="font-size:9px;color:var(--dim)">drag ↕ resize</span>
+              <button onclick="clearTerm()" style="background:none;border:none;color:var(--dim);font-size:11px">✕</button>
+            </div>
+          </div>
+          <div id="term-output"></div>
+          <div id="term-input-row">
+            <span id="term-prompt">&gt;&gt;&gt;</span>
+            <input id="term-input" type="text" placeholder="pip install pygame  |  python code  |  help  |  ↑↓ history"
+              autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
+              onkeydown="onTermKey(event)" />
+            <button id="term-send" onclick="runTermCmd(document.getElementById('term-input').value)">↵</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- LEARN TAB -->
+      <div id="learn-panel" class="tab-panel">
+        <div id="search-wrap">
+          <input id="lesson-search" type="text" placeholder="🔍 Search lessons..." oninput="filterLessons(this.value)">
+        </div>
+        <div id="progress-card">
+          <div class="title">Python Learning Path</div>
+          <div class="sub" id="lesson-count-sub">0 / 35 completed</div>
+          <div id="learn-progress-bar"><div id="learn-progress-fill" style="width:0%"></div></div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-size:9.5px;color:var(--dim)">35 lessons · Beginner to Advanced</span>
+            <span style="font-size:9.5px;color:var(--accent)" id="learn-pct-label">0%</span>
+          </div>
+        </div>
+        <div id="lessons-list"></div>
+      </div>
+
+      <!-- AI TAB -->
+      <div id="ai-panel" class="tab-panel">
+        <div id="chat-msgs"></div>
+        <div id="quick-prompts">
+          <button class="quick-btn" onclick="setChat('Explain list comprehensions')">List comprehensions</button>
+          <button class="quick-btn" onclick="setChat('What is a decorator?')">Decorators</button>
+          <button class="quick-btn" onclick="setChat('How does async/await work?')">Async/await</button>
+          <button class="quick-btn" onclick="setChat('How do I use pygame?')">Pygame help</button>
+        </div>
+        <div id="chat-input-row">
+          <textarea id="chat-input" rows="1" placeholder="Ask anything Python..."
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
+          <button id="chat-send" onclick="sendChat()">↑</button>
+        </div>
+      </div>
+
+      <!-- QUIZ TAB -->
+      <div id="quiz-panel" class="tab-panel">
+        <div id="quiz-content"></div>
+      </div>
+
+    </div><!-- end #body -->
+
+    <!-- Bottom Nav -->
+    <div id="nav">
+      <button class="nav-btn active" id="nav-learn" onclick="switchTab('learn')"><span class="icon">📚</span>Learn</button>
+      <button class="nav-btn" id="nav-code" onclick="switchTab('code')"><span class="icon">💻</span>Editor</button>
+      <button class="nav-btn" id="nav-ai" onclick="switchTab('ai')"><span class="icon">🤖</span>Ask AI</button>
+      <button class="nav-btn" id="nav-quiz" onclick="switchTab('quiz')"><span class="icon">🎯</span>Quiz</button>
+    </div>
+  </div><!-- end #main-app -->
+</div><!-- end #app -->
+
+<!-- Package Manager Modal -->
+<div id="pkg-modal">
+  <div id="pkg-sheet">
+    <div id="pkg-sheet-hdr">
+      <span>📦 Package Manager</span>
+      <button class="close-modal-btn" onclick="hidePkg()">✕</button>
+    </div>
+    <div id="pkg-body">
+      <div class="pkg-section-label" style="color:var(--accent)">pip install</div>
+      <div id="pip-row">
+        <input id="pip-input" type="text" placeholder="e.g. pygame, requests, opencv-python..."
+          onkeydown="if(event.key==='Enter')doPipInstall()">
+        <button id="pip-install-btn" onclick="doPipInstall()">Install</button>
+      </div>
+      <div id="pip-log"></div>
+      <div class="pkg-section-label" style="color:var(--yellow);margin-top:10px">⚡ Pre-built (fast)</div>
+      <div id="pkg-grid" class="pkg-grid"></div>
+      <div class="pkg-section-label" style="color:var(--green);margin-top:10px">✅ Installed</div>
+      <div id="installed-list"></div>
+      <div class="note-box">
+        On native Android (Chaquopy), <strong style="color:var(--text)">all packages work</strong> — pygame, tkinter, opencv, and more. pip calls real CPython.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Templates Modal -->
+<div id="tpl-modal">
+  <div id="tpl-sheet">
+    <div id="tpl-sheet-hdr">
+      <span>📁 Templates</span>
+      <button class="close-modal-btn" onclick="hideTpl()">✕</button>
+    </div>
+    <div id="tpl-grid"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// BRIDGE: Detects native Android (Chaquopy) vs browser (Pyodide)
+// ═══════════════════════════════════════════════════════════════════════
+const IS_NATIVE = typeof window.AndroidPython !== 'undefined' || window.__NATIVE_PYTHON__;
+
+let pyodide = null;
+let pyReady = false;
+let running = false;
+let termBusy = false;
+let termHistory = [];
+let histIdx = -1;
+let terminalHeight = 200;
+let installedPkgs = ['micropip'];
+
+// ── Python bridge abstraction ──────────────────────────────────────────
+const PY = {
+  async runCode(code) {
+    if (IS_NATIVE) {
+      return new Promise(resolve => {
+        setTimeout(() => {
+          const r = window.AndroidPython.runCode(code);
+          resolve(JSON.parse(r));
+        }, 0);
+      });
+    }
+    // Browser: Pyodide
+    if (!pyodide) throw new Error('Pyodide not ready');
+    const items = { output: '', errors: '', success: true, images: [] };
+    pyodide.setStdout({ batched: s => {
+      if (s.startsWith('__FIG__:')) items.images.push(s.slice(8));
+      else items.output += s;
+    }});
+    pyodide.setStderr({ batched: s => items.errors += s });
+    const wrapped = `
+try:
+    import matplotlib as _mpl; _mpl.use('Agg')
+    import matplotlib.pyplot as _plt, io as _io, base64 as _b64
+    def _show(*a,**k):
+        buf=_io.BytesIO(); _plt.savefig(buf,format='png',dpi=96,bbox_inches='tight',facecolor='#0d0d0d')
+        buf.seek(0); print('__FIG__:'+_b64.b64encode(buf.read()).decode()); _plt.close()
+    _plt.show=_show
+except: pass
+${code}`;
+    try { await pyodide.runPythonAsync(wrapped); }
+    catch(e) { items.errors = String(e); items.success = false; }
+    return items;
+  },
+
+  async pipInstall(pkgName) {
+    if (IS_NATIVE) {
+      return new Promise(resolve => {
+        setTimeout(() => {
+          const r = window.AndroidPython.pipInstall(pkgName);
+          resolve(JSON.parse(r));
+        }, 0);
+      });
+    }
+    // Browser fallback
+    if (!pyodide) return { success: false, error: 'Python not ready' };
+    const log = [];
+    pyodide.setStdout({ batched: s => log.push(s) });
+    pyodide.setStderr({ batched: s => log.push(s) });
+    try {
+      await pyodide.runPythonAsync(`import micropip\nawait micropip.install('${pkgName}')\nprint('Installed ${pkgName}')`);
+      return { success: true, output: log.join('\n'), error: '' };
+    } catch(e) {
+      return { success: false, output: '', error: e.message };
+    }
+  },
+
+  async pipList() {
+    if (IS_NATIVE) {
+      return JSON.parse(window.AndroidPython.pipList());
+    }
+    return installedPkgs.map(n => ({ name: n, version: '' }));
+  },
+
+  version() {
+    if (IS_NATIVE) return window.AndroidPython.pythonVersion();
+    return 'Python 3.12 (Pyodide WebAssembly)';
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════
+async function init() {
+  if (IS_NATIVE) {
+    // Native Android — Python already running via Chaquopy
+    setStatus('ready', PY.version());
+    addTermLine('info', PY.version());
+    addTermLine('info', 'All packages available. Type "help" for commands.');
+    pyReady = true;
+  } else {
+    // Browser — load Pyodide
+    setStatus('loading', 'Loading...');
+    addTermLine('info', 'Loading Python runtime...');
+    try {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js';
+      document.head.appendChild(script);
+      await new Promise((res, rej) => { script.onload = res; script.onerror = rej; });
+      pyodide = await loadPyodide({ indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/' });
+      await pyodide.loadPackage('micropip');
+      pyReady = true;
+      setStatus('ready', 'Python 3.12 (Browser)');
+      addTermLine('info', 'Python ready. Note: pygame/tkinter not available in browser.');
+    } catch(e) {
+      setStatus('error', 'Error');
+      addTermLine('err', 'Failed to load Python: ' + e.message);
+    }
+  }
+  buildUI();
+  renderLessons();
+  renderQuiz();
+  renderPkgGrid();
+  renderTplGrid();
+  renderFileTabs();
+  initTermResize();
+  setEditor(files[activeFileId].content);
+}
+
+function setStatus(s, label) {
+  const dot = document.getElementById('py-dot');
+  dot.style.background = s === 'ready' ? 'var(--success)' : s === 'error' ? 'var(--red)' : 'var(--yellow)';
+  document.getElementById('py-label').textContent = label;
+  document.getElementById('run-btn').disabled = s !== 'ready';
+  document.getElementById('run-btn').textContent = s === 'ready' ? '▶  Run Python' : s === 'loading' ? 'Loading Python...' : '▶  Run Python';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// FILES
+// ═══════════════════════════════════════════════════════════════════════
+let fileCounter = 3;
+let files = {
+  1: { id: 1, name: 'main.py', content: '# PyLearn IDE — Real Python!\nprint("Hello, World!")\n\nfor i in range(1, 6):\n    stars = "*" * i\n    print(f"  {stars}")\n' },
+  2: { id: 2, name: 'scratch.py', content: '# Scratch pad\n' },
+};
+let activeFileId = 1;
+
+function renderFileTabs() {
+  const container = document.getElementById('file-tabs');
+  container.innerHTML = '';
+  Object.values(files).forEach(f => {
+    const div = document.createElement('div');
+    div.className = 'file-tab' + (f.id === activeFileId ? ' active' : '');
+    div.innerHTML = `<span ondblclick="renameFile(${f.id})" onclick="switchFile(${f.id})">${f.name}</span>
+      ${Object.keys(files).length > 1 ? `<button class="close-btn" onclick="closeFile(${f.id})">✕</button>` : ''}`;
+    container.appendChild(div);
+  });
+  const addBtn = document.createElement('button');
+  addBtn.id = 'new-file-btn'; addBtn.textContent = '+'; addBtn.onclick = newFile;
+  container.appendChild(addBtn);
+}
+
+function switchFile(id) {
+  files[activeFileId].content = document.getElementById('code-editor').value;
+  activeFileId = id;
+  setEditor(files[id].content);
+  renderFileTabs();
+}
+
+function newFile() {
+  fileCounter++;
+  files[fileCounter] = { id: fileCounter, name: `file${fileCounter}.py`, content: '# New file\n' };
+  switchFile(fileCounter);
+}
+
+function closeFile(id) {
+  if (Object.keys(files).length <= 1) return;
+  delete files[id];
+  if (activeFileId === id) activeFileId = parseInt(Object.keys(files)[0]);
+  setEditor(files[activeFileId].content);
+  renderFileTabs();
+}
+
+function renameFile(id) {
+  const name = prompt('Rename file:', files[id].name);
+  if (name && name.trim()) { files[id].name = name.trim(); renderFileTabs(); }
+}
+
+function loadIntoEditor(filename, code) {
+  const existing = Object.values(files).find(f => f.name === filename);
+  if (existing) { switchFile(existing.id); return; }
+  fileCounter++;
+  files[fileCounter] = { id: fileCounter, name: filename, content: code };
+  switchFile(fileCounter);
+  hideTpl();
+  switchTab('code');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// EDITOR
+// ═══════════════════════════════════════════════════════════════════════
+const KW = new Set(['def','class','if','elif','else','for','while','return','import','from','in','not','and','or','True','False','None','try','except','finally','raise','with','as','pass','break','continue','lambda','yield','del','global','async','await','assert']);
+const BI = new Set(['print','len','range','type','int','str','float','bool','list','dict','tuple','set','zip','map','filter','enumerate','sorted','sum','min','max','abs','round','any','all','isinstance','super','open','repr','input','hasattr','getattr','vars','dir']);
+
+function escape(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function highlightLine(line) {
+  let out = '', i = 0;
+  while (i < line.length) {
+    if (line[i] === '#') { out += `<span style="color:var(--comment)">${escape(line.slice(i))}</span>`; break; }
+    if (line[i] === '"' || line[i] === "'") {
+      const q = line[i]; let j = i + 1;
+      while (j < line.length && line[j] !== q) { if (line[j] === '\\') j++; j++; } j++;
+      out += `<span style="color:var(--str)">${escape(line.slice(i,j))}</span>`; i = j; continue;
+    }
+    if (/[0-9]/.test(line[i])) {
+      let j = i; while (j < line.length && /[0-9._eExX]/.test(line[j])) j++;
+      out += `<span style="color:var(--num)">${escape(line.slice(i,j))}</span>`; i = j; continue;
+    }
+    if (/[a-zA-Z_]/.test(line[i])) {
+      let j = i; while (j < line.length && /[a-zA-Z0-9_]/.test(line[j])) j++;
+      const w = line.slice(i, j);
+      let col = KW.has(w) ? 'var(--kw)' : BI.has(w) ? 'var(--green)' : (j < line.length && line[j] === '(') ? 'var(--fn)' : /^[A-Z]/.test(w) ? '#4ec9b0' : 'var(--text)';
+      out += `<span style="color:${col}">${escape(w)}</span>`; i = j; continue;
+    }
+    const symCol = '()[]{}'. includes(line[i]) ? 'var(--text)' : '+-*/%=<>!&|^~'.includes(line[i]) ? 'var(--yellow)' : 'var(--text)';
+    out += `<span style="color:${symCol}">${escape(line[i])}</span>`; i++;
+  }
+  return out;
+}
+
+function setEditor(content) {
+  const ta = document.getElementById('code-editor');
+  ta.value = content;
+  updateHighlight(content);
+  updateLineNumbers(content);
+  document.getElementById('line-count').textContent = content.split('\n').length + ' lines';
+}
+
+function onEditorInput() {
+  const v = document.getElementById('code-editor').value;
+  updateHighlight(v);
+  updateLineNumbers(v);
+  document.getElementById('line-count').textContent = v.split('\n').length + ' lines';
+}
+
+function updateHighlight(code) {
+  const lines = code.split('\n');
+  document.getElementById('highlight-layer').innerHTML = lines.map(l => highlightLine(l)).join('\n');
+}
+
+function updateLineNumbers(code) {
+  const n = code.split('\n').length;
+  document.getElementById('line-numbers').innerHTML = Array.from({length:n},(_,i)=>`<div class="ln">${i+1}</div>`).join('');
+}
+
+function syncScroll() {
+  const ta = document.getElementById('code-editor');
+  const hl = document.getElementById('highlight-layer');
+  const ln = document.getElementById('line-numbers');
+  hl.scrollTop = ta.scrollTop; hl.scrollLeft = ta.scrollLeft;
+  ln.scrollTop = ta.scrollTop;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// RUN CODE
+// ═══════════════════════════════════════════════════════════════════════
+async function runCode() {
+  if (!pyReady || running) return;
+  running = true;
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('run-btn').textContent = 'Running...';
+  addTermLine('cmd', '>>> [Running ' + (files[activeFileId]?.name || 'main.py') + ']');
+
+  try {
+    const code = document.getElementById('code-editor').value;
+    const result = await PY.runCode(code);
+
+    if (result.output) addTermLine('out', result.output.trim());
+    if (result.errors) addTermLine('err', result.errors.trim());
+    if (result.images && result.images.length) {
+      result.images.forEach(img => {
+        const el = document.createElement('img');
+        el.src = 'data:image/png;base64,' + img;
+        el.className = 'term-chart';
+        document.getElementById('term-output').appendChild(el);
+      });
+    }
+    if (!result.output && !result.errors && (!result.images || !result.images.length)) {
+      addTermLine('info', '(no output)');
+    }
+  } catch(e) {
+    addTermLine('err', 'Error: ' + e.message);
+  }
+
+  running = false;
+  document.getElementById('run-btn').disabled = false;
+  document.getElementById('run-btn').textContent = '▶  Run Python';
+  scrollTerm();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TERMINAL
+// ═══════════════════════════════════════════════════════════════════════
+function addTermLine(type, text) {
+  const out = document.getElementById('term-output');
+  const pre = document.createElement('pre');
+  pre.className = 'term-line term-' + type;
+  pre.textContent = text;
+  out.appendChild(pre);
+  scrollTerm();
+}
+
+function scrollTerm() {
+  const out = document.getElementById('term-output');
+  out.scrollTop = out.scrollHeight;
+}
+
+function clearTerm() {
+  document.getElementById('term-output').innerHTML = '';
+  addTermLine('info', 'Terminal cleared. Type "help" for commands.');
+}
+
+function onTermKey(e) {
+  if (e.key === 'Enter') { e.preventDefault(); runTermCmd(e.target.value); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); const i = Math.min(histIdx+1, termHistory.length-1); histIdx=i; if(termHistory[i]!==undefined) e.target.value=termHistory[i]; }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); const i = Math.max(histIdx-1,-1); histIdx=i; e.target.value = i===-1?'':termHistory[i]||''; }
+}
+
+async function runTermCmd(raw) {
+  if (!raw || !raw.trim()) return;
+  const cmd = raw.trim();
+  document.getElementById('term-input').value = '';
+  termHistory.unshift(cmd); histIdx = -1;
+  addTermLine('cmd', '>>> ' + cmd);
+  if (!pyReady) { addTermLine('err', 'Python not ready.'); return; }
+  if (termBusy) { addTermLine('err', 'Already running. Please wait.'); return; }
+  termBusy = true;
+  document.getElementById('term-prompt').textContent = '...';
+  document.getElementById('term-status').textContent = '● busy';
+  document.getElementById('term-status').style.color = 'var(--yellow)';
+
+  try {
+    // Normalize pip3 → pip
+    let c = cmd;
+    if (/^pip3\s/.test(c)) c = 'pip' + c.slice(4);
+    if (/^python3?\s+-m\s+pip\s+/.test(c)) c = c.replace(/^python3?\s+-m\s+pip\s+/, 'pip ');
+
+    if (c === 'clear' || c === 'cls') { clearTerm(); }
+    else if (c === 'help') {
+      addTermLine('info', [
+        '─── PyLearn Terminal ─────────────────────────',
+        '  pip install <pkg>        Install any package',
+        '  pip install p1 p2 p3     Install multiple',
+        '  pip list                 Show installed',
+        '  pip show <pkg>           Package info',
+        '  pip uninstall <pkg>      Remove package',
+        '  python --version         Python version',
+        '  clear / cls              Clear terminal',
+        '  <any Python>             Run Python code',
+        '─────────────────────────────────────────────',
+        IS_NATIVE ? '  ✅ Native Python (all packages work!)' : '  ⚠ Browser mode (pure Python only)',
+      ].join('\n'));
+    }
+    else if (c === 'python --version' || c === 'python3 --version') {
+      addTermLine('out', PY.version());
+    }
+    else if (c === 'pip' || c === 'pip3') {
+      addTermLine('info', 'Usage: pip install <pkg>  |  pip list  |  pip show <pkg>');
+    }
+    else if (c === 'pip list') {
+      const pkgs = await PY.pipList();
+      const rows = IS_NATIVE ? pkgs.map(p => `  ${p.name} ${p.version}`).join('\n') : installedPkgs.map(n => '  ' + n).join('\n');
+      addTermLine('out', 'Installed packages:\n' + rows);
+    }
+    else if (c.startsWith('pip show ')) {
+      const n = c.slice(9).trim();
+      addTermLine('info', `Name: ${n}\nStatus: ${installedPkgs.includes(n) ? 'Installed' : 'Not installed'}`);
+    }
+    else if (c.startsWith('pip uninstall ')) {
+      const n = c.slice(14).trim();
+      installedPkgs = installedPkgs.filter(p => p !== n);
+      addTermLine('out', `Uninstalled ${n} (reload page/app to fully remove)`);
+      renderInstalledBadges();
+    }
+    else if (c.startsWith('pip install ')) {
+      const pkgsStr = c.slice(12).trim();
+      if (!pkgsStr) { addTermLine('err', 'Usage: pip install <package-name>'); }
+      else {
+        const pkgs = pkgsStr.split(/\s+/);
+        for (const pkg of pkgs) {
+          addTermLine('info', `Collecting ${pkg}...`);
+          const result = await PY.pipInstall(pkg);
+          if (result.success) {
+            const base = pkg.split(/[=<>!]/)[0].toLowerCase();
+            if (!installedPkgs.includes(base)) installedPkgs.push(base);
+            addTermLine('out', `Successfully installed ${pkg} ✓`);
+            renderInstalledBadges();
+          } else {
+            addTermLine('err', `ERROR installing ${pkg}:\n${result.error}`);
+          }
+        }
+      }
+    }
+    else if (/^pip3?\s/.test(c)) {
+      addTermLine('err', `Unknown pip command. Try: pip install <pkg> or pip list`);
+    }
+    else {
+      // Run as Python
+      const result = await PY.runCode(c);
+      if (result.output) addTermLine('out', result.output.trim());
+      if (result.errors) addTermLine('err', result.errors.trim());
+      if (result.images && result.images.length) {
+        result.images.forEach(img => {
+          const el = document.createElement('img');
+          el.src = 'data:image/png;base64,' + img;
+          el.className = 'term-chart';
+          document.getElementById('term-output').appendChild(el);
+        });
+      }
+      if (!result.output && !result.errors) addTermLine('info', '');
+    }
+  } catch(e) {
+    addTermLine('err', 'Error: ' + e.message);
+  }
+
+  termBusy = false;
+  document.getElementById('term-prompt').textContent = '>>>';
+  document.getElementById('term-status').textContent = '● ready';
+  document.getElementById('term-status').style.color = 'var(--success)';
+  scrollTerm();
+}
+
+// ── Terminal resize ────────────────────────────────────────────────────
+function initTermResize() {
+  const handle = document.getElementById('term-handle');
+  const term = document.getElementById('terminal');
+  let dragging = false, startY = 0, startH = 0;
+  handle.addEventListener('pointerdown', e => {
+    dragging = true; startY = e.clientY; startH = terminalHeight;
+    e.preventDefault();
+  });
+  document.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const delta = startY - e.clientY;
+    terminalHeight = Math.min(600, Math.max(80, startH + delta));
+    term.style.height = terminalHeight + 'px';
+  });
+  document.addEventListener('pointerup', () => { dragging = false; });
+  term.style.height = terminalHeight + 'px';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// PACKAGE MANAGER
+// ═══════════════════════════════════════════════════════════════════════
+const PREBUILT = [
+  {name:'numpy',desc:'Array computing',icon:'🔢'},
+  {name:'pandas',desc:'Data analysis',icon:'🐼'},
+  {name:'matplotlib',desc:'Charts & plots',icon:'📊'},
+  {name:'scipy',desc:'Scientific math',icon:'🔬'},
+  {name:'sympy',desc:'Symbolic algebra',icon:'📐'},
+  {name:'pillow',desc:'Image processing',icon:'🖼️'},
+  {name:'pygame-ce',desc:'Games & graphics',icon:'🎮'},
+  {name:'httpx',desc:'HTTP requests',icon:'🌐'},
+  {name:'requests',desc:'HTTP library',icon:'🌍'},
+  {name:'opencv-python',desc:'Computer vision',icon:'👁️'},
+];
+
+function renderPkgGrid() {
+  const grid = document.getElementById('pkg-grid');
+  grid.innerHTML = PREBUILT.map(p => {
+    const loaded = installedPkgs.includes(p.name) || installedPkgs.includes(p.name.replace('-ce','').replace('-python',''));
+    return `<div class="pkg-card ${loaded?'installed':''}">
+      <span class="pkg-card-icon">${p.icon}</span>
+      <div class="pkg-card-info">
+        <div class="pkg-card-name ${loaded?'installed':''}">${p.name}</div>
+        <div class="pkg-card-desc">${p.desc}</div>
+      </div>
+      <button class="pkg-load-btn ${loaded?'loaded':''}" onclick="quickInstall('${p.name}')" ${loaded?'disabled':''}>
+        ${loaded?'✓':'Load'}
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function renderInstalledBadges() {
+  document.getElementById('installed-list').innerHTML = installedPkgs.map(p =>
+    `<span class="installed-badge">${p}</span>`).join('');
+  renderPkgGrid();
+}
+
+async function doPipInstall() {
+  const name = document.getElementById('pip-input').value.trim();
+  if (!name) return;
+  document.getElementById('pip-input').value = '';
+  const log = document.getElementById('pip-log');
+  log.innerHTML = `<div class="pip-log-line" style="color:var(--dim)">Collecting ${name}...</div>`;
+  const result = await PY.pipInstall(name);
+  if (result.success) {
+    log.innerHTML = `<div class="pip-log-line" style="color:var(--success)">✓ Successfully installed ${name}</div>`;
+    const base = name.split(/[=<>!]/)[0].toLowerCase();
+    if (!installedPkgs.includes(base)) installedPkgs.push(base);
+    renderInstalledBadges();
+  } else {
+    log.innerHTML = `<div class="pip-log-line" style="color:var(--red)">✕ ${result.error || 'Installation failed'}</div>`;
+  }
+}
+
+async function quickInstall(name) {
+  addTermLine('info', `Installing ${name}...`);
+  hidePkg(); switchTab('code');
+  const result = await PY.pipInstall(name);
+  if (result.success) {
+    addTermLine('out', `✓ ${name} installed successfully!`);
+    const base = name.split(/[=<>!]/)[0].toLowerCase();
+    if (!installedPkgs.includes(base)) installedPkgs.push(base);
+    renderInstalledBadges();
+  } else {
+    addTermLine('err', `Failed to install ${name}: ${result.error}`);
+  }
+}
+
+function showPkg() { document.getElementById('pkg-modal').classList.add('open'); renderInstalledBadges(); }
+function hidePkg() { document.getElementById('pkg-modal').classList.remove('open'); }
+
+// ═══════════════════════════════════════════════════════════════════════
+// TEMPLATES
+// ═══════════════════════════════════════════════════════════════════════
+const TEMPLATES = [
+  {name:'Calculator',icon:'🧮',file:'calculator.py',code:['# Calculator','def calc(a,op,b):','    if op=="+"  : return a+b','    if op=="-"  : return a-b','    if op=="*"  : return a*b','    if op=="/"  : return a/b if b!=0 else "div/0"','    if op=="**" : return a**b','    if op=="%"  : return a%b','    return "?"','for a,op,b in [(10,"+"  ,5),(20,"-",8),(6,"*",7),(2,"**",10)]:','    print(f"  {a} {op} {b} = {calc(a,op,b)}")'].join('\n')},
+  {name:'Pygame Demo',icon:'🎮',file:'pygame_demo.py',code:['import pygame, sys','pygame.init()','screen = pygame.display.set_mode((400, 300))','pygame.display.set_caption("PyLearn Game")','clock = pygame.time.Clock()','x, y = 200, 150','running = True','while running:','    for event in pygame.event.get():','        if event.type == pygame.QUIT: running = False','    keys = pygame.key.get_pressed()','    if keys[pygame.K_LEFT]:  x -= 3','    if keys[pygame.K_RIGHT]: x += 3','    if keys[pygame.K_UP]:    y -= 3','    if keys[pygame.K_DOWN]:  y += 3','    screen.fill((15,15,30))','    pygame.draw.circle(screen,(0,122,204),(x,y),20)','    pygame.draw.rect(screen,(78,201,176),(50,200,300,20))','    pygame.display.flip()','    clock.tick(60)','pygame.quit()'].join('\n')},
+  {name:'Matplotlib',icon:'📊',file:'chart.py',code:["import matplotlib","matplotlib.use('Agg')","import matplotlib.pyplot as plt","import numpy as np","x = np.linspace(0, 2*3.14159, 100)","fig, axes = plt.subplots(1, 2, figsize=(8,3), facecolor='#0d0d0d')","for ax in axes: ax.set_facecolor('#111')",'axes[0].plot(x, np.sin(x), color="#4ec9b0", lw=2)',"axes[0].set_title('Sine Wave', color='white')",'axes[0].tick_params(colors="#888")',"for sp in axes[0].spines.values(): sp.set_color('#333')",'months = ["Jan","Feb","Mar","Apr","May"]',"vals = [42,68,55,90,73]",'axes[1].bar(months, vals, color="#007acc")',"axes[1].set_title('Monthly Data', color='white')",'axes[1].tick_params(colors="#888")',"for sp in axes[1].spines.values(): sp.set_color('#333')",'plt.tight_layout()','plt.show()','print("Chart rendered!")'].join('\n')},
+  {name:'Number Game',icon:'🎲',file:'numgame.py',code:['import random','secret = random.randint(1,100)','guesses = [50, 25, 37, 43, 46, secret]','print(f"Secret: {secret}")','for i, g in enumerate(guesses, 1):','    hint = "Correct!" if g==secret else ("Too low" if g<secret else "Too high")','    print(f"  Guess {i}: {g} -> {hint}")','    if g == secret:','        print(f"  Won in {i} guesses!")','        break'].join('\n')},
+  {name:'RPG Game',icon:'⚔️',file:'rpg.py',code:['class Hero:','    def __init__(self, name):','        self.name=name; self.hp=100; self.atk=18; self.gold=0','    def status(self):','        bar = "#"*int(self.hp/10)+"."*(10-int(self.hp/10))','        print(f"  [{bar}] HP:{self.hp} Gold:{self.gold}")','','class Enemy:','    def __init__(self,n,hp,dmg,gold): self.name=n;self.hp=hp;self.dmg=dmg;self.gold=gold','','def fight(hero, enemy):','    print(f"\\n--- {hero.name} vs {enemy.name}! ---")','    r=1','    while hero.hp>0 and enemy.hp>0:','        enemy.hp -= hero.atk; hero.hp -= enemy.dmg','        print(f"  Round {r}: you {hero.atk}dmg, enemy {enemy.dmg}dmg")','        r+=1','    if hero.hp>0: hero.gold+=enemy.gold; print(f"  Victory! +{enemy.gold}g!")','    else: print("  Defeated!")','','hero = Hero("Arodes")','for e in [Enemy("Slime",30,4,10),Enemy("Goblin",55,9,25),Enemy("Dragon",90,14,100)]:','    if hero.hp>0: fight(hero,e); hero.status()'].join('\n')},
+  {name:'NumPy',icon:'🔢',file:'numpy_demo.py',code:['import numpy as np','a = np.array([1,2,3,4,5])','print("Array:", a)','print("Squared:", a**2)','print("Mean:", np.mean(a))','m = np.array([[1,2],[3,4]])','print("Matrix:\\n", m)','print("Inverse:\\n", np.linalg.inv(m).round(3))'].join('\n')},
+  {name:'Pandas',icon:'🐼',file:'pandas_demo.py',code:['import pandas as pd','data={"Name":["Alice","Bob","Carlos"],"Score":[92,78,88],"Grade":["A","C","B"]}','df = pd.DataFrame(data)','print(df.to_string(index=False))','print("\\nStats:")','print(df["Score"].describe().round(1))'].join('\n')},
+  {name:'OOP',icon:'🏛️',file:'oop_demo.py',code:['class Animal:','    def __init__(self,name,sound): self.name=name; self.sound=sound','    def speak(self): return f"{self.name} says {self.sound}!"','','class Dog(Animal):','    def __init__(self,name): super().__init__(name,"Woof")','    def fetch(self,item): return f"{self.name} fetched the {item}!"','','class Cat(Animal):','    def __init__(self,name): super().__init__(name,"Meow")','    def speak(self): return f"{self.name} says purr..."','','dog = Dog("Rex"); cat = Cat("Luna")','print(dog.speak())','print(cat.speak())','print(dog.fetch("ball"))'].join('\n')},
+];
+
+function renderTplGrid() {
+  document.getElementById('tpl-grid').innerHTML = TEMPLATES.map(t =>
+    `<div class="tpl-card" onclick="loadIntoEditor('${t.file}',TEMPLATES.find(x=>x.file==='${t.file}').code)">
+      <div class="tpl-icon">${t.icon}</div>
+      <div class="tpl-name">${t.name}</div>
+      <div class="tpl-file">${t.file}</div>
+    </div>`
+  ).join('');
+}
+
+function showTpl() { document.getElementById('tpl-modal').classList.add('open'); }
+function hideTpl() { document.getElementById('tpl-modal').classList.remove('open'); }
+
+// ═══════════════════════════════════════════════════════════════════════
+// LESSONS (35 lessons inline)
+// ═══════════════════════════════════════════════════════════════════════
+const LESSONS = [
+  {id:1,icon:'🐍',title:'What is Python?',cat:'Getting Started',theory:'Python is a high-level, interpreted, general-purpose programming language created by Guido van Rossum in 1991. It can be used for web development, data science, AI/ML, automation, game development (pygame!), and much more.',code:'import sys\nprint("Python version:")\nprint(sys.version)\nprint("\\nHello from Python!")',output:"Python version:\n3.12.0\n\nHello from Python!",tips:['Python uses indentation to define blocks','Python files end with .py','Python is case-sensitive','# starts a comment','On Android, ALL packages including pygame work!']},
+  {id:2,icon:'📦',title:'Variables',cat:'Getting Started',theory:'Variables are containers for storing data. Python figures out the type automatically.',code:'name = "Alice"\nage = 25\nheight = 5.7\nprint(f"{name} is {age} years old")',output:'Alice is 25 years old',tips:['= assigns a value','== compares values','f-strings embed variables','Use snake_case names']},
+  {id:3,icon:'🔤',title:'Strings',cat:'Variables & Types',theory:'Strings are text enclosed in quotes. Python has many powerful string operations.',code:'s = "Hello, World!"\nprint(len(s))\nprint(s.upper())\nprint(s[0:5])\nprint(f"Length is {len(s)}")',output:'13\nHELLO, WORLD!\nHello\nLength is 13',tips:['Strings are immutable','s[0] is first char','s[-1] is last char','f-strings: f"{var}"']},
+  {id:4,icon:'🔢',title:'Numbers & Math',cat:'Variables & Types',theory:'Python supports integers, floats, and complex numbers. The math module adds advanced operations.',code:'import math\nx, y = 10, 3\nprint(x+y, x-y, x*y)\nprint(x/y, x//y, x%y, x**y)\nprint(math.sqrt(144))\nprint(math.pi)',output:'13 7 30\n3.333 3 1 1000\n12.0\n3.14159...',tips:['// is integer division','% is modulo (remainder)','** is power','math module: sqrt, sin, cos, pi']},
+  {id:5,icon:'🔄',title:'Type Casting',cat:'Variables & Types',theory:'Convert between types using int(), float(), str(), bool().',code:'print(int(3.9))    # 3\nprint(float(5))    # 5.0\nprint(str(100))    # "100"\nprint(bool(0))     # False\nprint(bool("hi"))  # True',output:'3\n5.0\n100\nFalse\nTrue',tips:['int() truncates floats','bool("") is False','Use try/except when casting user input']},
+  {id:6,icon:'⚙️',title:'Operators',cat:'Variables & Types',theory:'Python has arithmetic, comparison, logical, membership, and identity operators.',code:'print(5==5, 5!=3, 5>3)\nprint(True and False)\nprint(True or False)\nfruits=["apple","banana"]\nprint("apple" in fruits)\na=[1,2]; b=a; c=[1,2]\nprint(a is b, a is c, a==c)',output:'True True True\nFalse\nTrue\nTrue\nTrue False True',tips:['== checks value, is checks identity','and/or/not for logic','in checks membership','Chaining: 1 < x < 10 works!']},
+  {id:7,icon:'🔀',title:'If / Elif / Else',cat:'Control Flow',theory:'Conditionals run different code based on conditions.',code:'score = 87\nif score >= 90:\n    grade = "A"\nelif score >= 75:\n    grade = "B"\nelse:\n    grade = "C"\nprint(f"Grade: {grade}")\nstatus = "Pass" if score>=60 else "Fail"\nprint(status)',output:'Grade: B\nPass',tips:['Indentation defines blocks','elif = else if','Ternary: val_true if cond else val_false']},
+  {id:8,icon:'🔁',title:'While Loops',cat:'Control Flow',theory:'While loops repeat as long as a condition is True.',code:'n = 1\nwhile n <= 5:\n    print(f"  {n} x 2 = {n*2}")\n    n += 1\n\ni = 0\nwhile True:\n    if i == 3: break\n    print(f"  i={i}"); i+=1',output:'  1 x 2 = 2\n  2 x 2 = 4\n  3 x 2 = 6\n  4 x 2 = 8\n  5 x 2 = 10\n  i=0\n  i=1\n  i=2',tips:['Always ensure condition becomes False','break exits loop','continue skips to next iteration']},
+  {id:9,icon:'🔄',title:'For Loops',cat:'Control Flow',theory:'For loops iterate over sequences. range(), enumerate(), zip() are essential.',code:'for i in range(0,8,2):\n    print(i, end=" ")\nprint()\nfruits = ["apple","banana","cherry"]\nfor i, f in enumerate(fruits, 1):\n    print(f"  {i}. {f}")',output:'0 2 4 6 \n  1. apple\n  2. banana\n  3. cherry',tips:['range(start,stop,step)','enumerate() gives index+value','zip() pairs two lists','Use _ for unused variable']},
+  {id:10,icon:'🎯',title:'List Comprehensions',cat:'Control Flow',theory:'Compact way to create lists. Faster and more Pythonic than regular loops.',code:'squares = [x**2 for x in range(1,6)]\nprint(squares)\nevens = [x for x in range(10) if x%2==0]\nprint(evens)\nwords = ["hello","world"]\nupper = [w.upper() for w in words]\nprint(upper)',output:'[1, 4, 9, 16, 25]\n[0, 2, 4, 6, 8]\n["HELLO", "WORLD"]',tips:['[expr for x in iterable if condition]','Dict comprehension: {k:v for k,v in items}','Faster than equivalent for loops']},
+  {id:11,icon:'⚙️',title:'Functions',cat:'Functions',theory:'Functions are reusable blocks. def defines them, return sends back a value.',code:'def power(base, exp=2):\n    return base ** exp\n\ndef greet(name, greeting="Hello"):\n    return f"{greeting}, {name}!"\n\nprint(power(3))\nprint(power(2, 8))\nprint(greet("Alice"))',output:'9\n256\nHello, Alice!',tips:['def defines a function','Parameters can have defaults','*args collects extra positional args','**kwargs collects keyword args']},
+  {id:12,icon:'λ',title:'Lambda Functions',cat:'Functions',theory:'Lambda is a small anonymous one-line function. Used with map(), filter(), sorted().',code:'square = lambda x: x**2\nprint(square(7))\nnums = [1,2,3,4,5]\nsquared = list(map(lambda x: x**2, nums))\nevens = list(filter(lambda x: x%2==0, nums))\nprint(squared)\nprint(evens)',output:'49\n[1, 4, 9, 16, 25]\n[2, 4]',tips:['lambda args: expression','map() applies to every item','filter() keeps matching items','sorted(list, key=lambda x: ...)']},
+  {id:13,icon:'🔁',title:'Recursion',cat:'Functions',theory:'A function that calls itself. Needs a base case to stop.',code:'def factorial(n):\n    if n <= 1: return 1\n    return n * factorial(n-1)\n\nfor i in range(1,8):\n    print(f"  {i}! = {factorial(i)}")',output:'  1! = 1\n  2! = 2\n  3! = 6\n  4! = 24\n  5! = 120\n  6! = 720\n  7! = 5040',tips:['Always define a base case','Python recursion limit: 1000','Use sys.setrecursionlimit() to change it']},
+  {id:14,icon:'📋',title:'Lists',cat:'Data Structures',theory:'Ordered, mutable collections. The most used Python data structure.',code:'nums = [3,1,4,1,5,9,2]\nnums.append(6)\nnums.sort()\nprint(nums)\nprint(f"Max:{max(nums)} Min:{min(nums)} Sum:{sum(nums)}")\nprint(nums[1:4])',output:'[1, 1, 2, 3, 4, 5, 6, 9]\nMax:9 Min:1 Sum:31\n[1, 2, 3]',tips:['Index starts at 0','list[-1] is the last item','list.sort() in-place; sorted() returns new','list * 3 repeats the list']},
+  {id:15,icon:'🔒',title:'Tuples',cat:'Data Structures',theory:'Immutable ordered collections. Faster than lists, used for fixed data.',code:'point = (3, 4)\nx, y = point\nprint(f"x={x}, y={y}")\nrgb = (255, 128, 0)\nprint(type(rgb))\nprint(rgb.count(0))',output:'x=3, y=4\n<class "tuple">\n1',tips:['Tuples are immutable','Single item: (42,) — needs comma','tuple unpacking: a, b = (1, 2)','Tuples can be dict keys; lists cannot']},
+  {id:16,icon:'🎲',title:'Sets',cat:'Data Structures',theory:'Unordered collections of unique items. Great for removing duplicates and set operations.',code:'a = {1,2,3,4,5}\nb = {4,5,6,7,8}\nprint(a | b)   # union\nprint(a & b)   # intersection\nprint(a - b)   # difference\ndupes=[1,2,2,3,3,3]\nprint(sorted(set(dupes)))',output:'{1,2,3,4,5,6,7,8}\n{4,5}\n{1,2,3}\n[1,2,3]',tips:['Sets have no index','in check is O(1) — very fast','discard() vs remove() (no error on missing)','frozenset() is immutable']},
+  {id:17,icon:'📖',title:'Dictionaries',cat:'Data Structures',theory:'Key-value pairs. Fast lookup by key. Ordered since Python 3.7.',code:'player = {"name":"Rex","hp":100,"lvl":5}\nplayer["xp"] = 2500\nprint(player["name"])\nprint(player.get("salary","N/A"))\nfor k,v in player.items():\n    print(f"  {k}: {v}")',output:'Rex\nN/A\n  name: Rex\n  hp: 100\n  lvl: 5\n  xp: 2500',tips:['.get(key,default) avoids KeyError','dict.update() merges dicts','del dict[key] removes entry','{k:v for k,v in items} — comprehension']},
+  {id:18,icon:'🏛️',title:'Classes & Objects',cat:'OOP',theory:'Classes are blueprints for objects. __init__ is the constructor. self refers to the instance.',code:'class Dog:\n    species = "Canis lupus"\n    def __init__(self, name, breed):\n        self.name = name\n        self.breed = breed\n    def bark(self):\n        return f"{self.name} says Woof!"\n\nrex = Dog("Rex","Husky")\nprint(rex.bark())\nprint(rex.species)',output:'Rex says Woof!\nCanis lupus',tips:['self is always first parameter','__init__ runs on creation','__str__ defines print(obj) output','Class vars shared; instance vars per-object']},
+  {id:19,icon:'🧬',title:'Inheritance',cat:'OOP',theory:'Child classes inherit from parent classes. super() calls the parent.',code:'class Animal:\n    def __init__(self,name,sound):\n        self.name=name; self.sound=sound\n    def speak(self):\n        return f"{self.name} says {self.sound}!"\n\nclass Cat(Animal):\n    def __init__(self,name): super().__init__(name,"Meow")\n    def speak(self): return f"{self.name} purrs..."\n\nc = Cat("Luna")\nprint(c.speak())\nprint(isinstance(c, Animal))',output:'Luna purrs...\nTrue',tips:['super().__init__() calls parent','Override methods in child class','isinstance() respects inheritance','Multiple inheritance: class C(A,B):']},
+  {id:20,icon:'🔐',title:'Encapsulation',cat:'OOP',theory:'Hide internal data using properties. __ makes attributes private.',code:'class BankAccount:\n    def __init__(self, bal=0):\n        self.__balance = bal\n    @property\n    def balance(self): return self.__balance\n    def deposit(self, amt):\n        if amt>0: self.__balance+=amt\n    def withdraw(self, amt):\n        if 0<amt<=self.__balance: self.__balance-=amt\n        else: print("Insufficient funds")\n\nacc = BankAccount(100)\nacc.deposit(50)\nacc.withdraw(30)\nprint(acc.balance)',output:'120',tips:['__ makes attribute private','@property creates a getter','@x.setter allows writing','Prevents accidental data corruption']},
+  {id:21,icon:'⚠️',title:'Error Handling',cat:'Error Handling',theory:'try/except catches errors. else runs if no error. finally always runs.',code:'def safe_div(a,b):\n    try:\n        return a/b\n    except ZeroDivisionError:\n        return "Cannot divide by zero!"\n    except TypeError as e:\n        return f"Type error: {e}"\n\nprint(safe_div(10,2))\nprint(safe_div(5,0))\nprint(safe_div(5,"x"))',output:'5.0\nCannot divide by zero!\nType error: ...',tips:['Always catch specific exceptions','else block runs if no exception','finally always runs (cleanup)','raise throws an exception']},
+  {id:22,icon:'📦',title:'Modules & Import',cat:'Modules',theory:'Import built-in or third-party modules with import or from...import.',code:'import math\nfrom random import randint, choice\nimport os\n\nprint(math.sqrt(144))\nprint(randint(1,10))\nprint(choice(["rock","paper","scissors"]))\nprint(os.getcwd())',output:'12.0\n7\nrock\n/data/user/0/...',tips:['import math → use as math.sqrt()','from math import sqrt → use as sqrt()','import math as m → alias','dir(module) lists all items']},
+  {id:23,icon:'📅',title:'Date & Time',cat:'Modules',theory:'The datetime module handles dates, times, and durations.',code:'import datetime\nnow = datetime.datetime.now()\nprint("Now:", now.date())\nprint("Year:", now.year)\nfuture = now + datetime.timedelta(days=30)\nprint("30 days later:", future.date())\nprint(now.strftime("%A, %B %d %Y"))',output:'Now: 2024-01-15\nYear: 2024\n30 days later: 2024-02-14\nMonday, January 15 2024',tips:['strftime() formats date to string','strptime() parses string to date','timedelta for durations','Use pytz for timezones']},
+  {id:24,icon:'🎲',title:'Random Module',cat:'Modules',theory:'Generate random numbers, shuffle lists, and make random choices.',code:'import random\nprint(random.randint(1,100))\nprint(random.uniform(0,1))\nfruits=["apple","banana","cherry","date"]\nprint(random.choice(fruits))\nrandom.shuffle(fruits)\nprint(fruits)\nrandom.seed(42)\nprint([random.randint(1,10) for _ in range(5)])',output:'73\n0.724\napple\n[...shuffled...]\n[1, 10, 2, 1, 9]',tips:['seed() makes results reproducible','choice() picks one','sample() picks many without replacement','choices() picks with replacement']},
+  {id:25,icon:'📁',title:'File Handling',cat:'File I/O',theory:"Python reads and writes files with open(). Always use 'with' for automatic closing.",code:'with open("test.txt","w") as f:\n    f.write("Hello, Python!\\n")\n    f.write("File handling is easy\\n")\n\nwith open("test.txt","r") as f:\n    for i, line in enumerate(f,1):\n        print(f"Line {i}: {line.strip()}")\n\nimport os; os.remove("test.txt")',output:'Line 1: Hello, Python!\nLine 2: File handling is easy',tips:["'w' overwrites; 'a' appends; 'r' reads","with auto-closes the file",'readlines() returns list of lines','Use "rb"/"wb" for binary files']},
+  {id:26,icon:'🎨',title:'Decorators',cat:'Advanced',theory:'Decorators wrap functions to add functionality. The @decorator syntax is syntactic sugar.',code:'import time\ndef timer(func):\n    def wrapper(*args, **kwargs):\n        start = time.time()\n        result = func(*args, **kwargs)\n        print(f"  {func.__name__} took {(time.time()-start)*1000:.1f}ms")\n        return result\n    return wrapper\n\n@timer\ndef slow_sum(n): return sum(range(n))\n\nresult = slow_sum(1000000)\nprint("Sum:", result)',output:'  slow_sum took 45.2ms\nSum: 499999500000',tips:['@decorator is shorthand','Use functools.wraps to preserve metadata','Decorators can be stacked','@staticmethod, @classmethod, @property built-in']},
+  {id:27,icon:'🔀',title:'Generators',cat:'Advanced',theory:'Generators yield values one at a time — memory efficient for large datasets.',code:'def count_up(start, end):\n    current = start\n    while current <= end:\n        yield current\n        current += 1\n\nfor n in count_up(1,5):\n    print(n, end=" ")\nprint()\n\nfib = (x**2 for x in range(1,6))\nprint(list(fib))',output:'1 2 3 4 5 \n[1, 4, 9, 16, 25]',tips:['yield pauses the function','Generators are lazy — compute on demand','(expr for x in list) is a generator expression','Use for large datasets to save memory']},
+  {id:28,icon:'🔍',title:'Regular Expressions',cat:'Advanced',theory:'Regex patterns match text. The re module provides powerful search and replace.',code:'import re\ntext = "Call 123-456-7890 or 098-765-4321"\nphones = re.findall(r"\\d{3}-\\d{3}-\\d{4}", text)\nprint("Phones:", phones)\n\ndef valid_email(e):\n    return bool(re.match(r"^[\\w.-]+@[\\w.-]+\\.\\w{2,}$", e))\n\nfor e in ["a@b.com","bad@","hi@world.org"]:\n    print(e, valid_email(e))',output:'Phones: ["123-456-7890","098-765-4321"]\na@b.com True\nbad@ False\nhi@world.org True',tips:['r"" prefix avoids double-escaping','re.match() checks from start','re.findall() returns all matches','re.sub() replaces matches','Groups () capture sub-patterns']},
+  {id:29,icon:'⚡',title:'Async / Await',cat:'Advanced',theory:'Async programming lets multiple tasks run concurrently — great for I/O-bound operations.',code:'import asyncio, time\n\nasync def fetch(url, delay):\n    print(f"  Fetching {url}...")\n    await asyncio.sleep(delay)\n    return f"Data from {url}"\n\nasync def main():\n    start = time.time()\n    r1, r2 = await asyncio.gather(\n        fetch("api/users", 0.5),\n        fetch("api/posts", 0.5)\n    )\n    print(f"Done in {time.time()-start:.1f}s")\n    print(r1)\n\nasyncio.run(main())',output:'  Fetching api/users...\n  Fetching api/posts...\nDone in 0.5s\nData from api/users',tips:['async def creates a coroutine','await pauses until result ready','asyncio.gather() runs concurrently','asyncio.run() starts event loop']},
+  {id:30,icon:'🎮',title:'Pygame Basics',cat:'Game Dev',theory:'pygame is a library for making games in Python. On Android (Chaquopy), it works natively with the touchscreen!',code:'import pygame\nprint(f"pygame version: {pygame.version.ver}")\npygame.init()\nprint("pygame initialized!")\nprint("Modules available:")\nfor m in ["display","event","draw","mixer","font"]:\n    print(f"  {m}: OK")\npygame.quit()\nprint("Done!")',output:'pygame version: 2.5.2\npygame initialized!\nModules available:\n  display: OK\n  event: OK\n  draw: OK\n  mixer: OK\n  font: OK\nDone!',tips:['pygame.init() initializes all modules','pygame.display.set_mode((w,h)) creates window','pygame.event.get() reads inputs','clock.tick(60) limits to 60 FPS','On Android, touch events map to mouse events!']},
+  {id:31,icon:'🖼️',title:'Pygame Drawing',cat:'Game Dev',theory:'pygame.draw has functions for rectangles, circles, lines, polygons and more.',code:'# Try the Pygame Demo template to see this run!\nimport pygame\nprint("pygame.draw functions:")\nfuncs = ["rect","circle","line","polygon","ellipse","arc"]\nfor f in funcs:\n    print(f"  pygame.draw.{f}(surface, color, ...)")\nprint("\\nColors are (R, G, B) tuples:")\nfor name, rgb in [("Red",(255,0,0)),("Blue",(0,122,204)),("Green",(78,201,176))]:\n    print(f"  {name}: {rgb}")',output:'pygame.draw functions:\n  pygame.draw.rect(...)\n  pygame.draw.circle(...)\n  ...\nColors are (R,G,B) tuples:\n  Red: (255,0,0)\n  Blue: (0,122,204)\n  Green: (78,201,176)',tips:['All colors are (R, G, B) tuples 0-255','surface = pygame.display.get_surface()','pygame.display.flip() updates screen','Load images: pygame.image.load("file.png")']},
+  {id:32,icon:'📊',title:'Data Classes',cat:'Advanced',theory:'@dataclass auto-generates __init__, __repr__, __eq__. Reduces boilerplate.',code:'from dataclasses import dataclass, field\nfrom typing import List\n\n@dataclass\nclass Student:\n    name: str\n    grade: int\n    scores: List[float] = field(default_factory=list)\n    def average(self):\n        return sum(self.scores)/len(self.scores) if self.scores else 0\n\nalice = Student("Alice", 10)\nalice.scores = [95, 87, 92]\nprint(alice)\nprint(f"Avg: {alice.average():.1f}")',output:"Student(name='Alice', grade=10, scores=[95,87,92])\nAvg: 91.3",tips:['@dataclass generates __init__ automatically','frozen=True makes it immutable','field(default_factory=list) for mutable defaults','Type hints are required for all fields']},
+  {id:33,icon:'🧪',title:'Unit Testing',cat:'Advanced',theory:'unittest ensures your code works correctly. Write tests before you write bugs.',code:'import unittest\n\ndef add(a,b): return a+b\ndef divide(a,b):\n    if b==0: raise ZeroDivisionError\n    return a/b\n\nclass TestMath(unittest.TestCase):\n    def test_add(self): self.assertEqual(add(2,3),5)\n    def test_divide(self): self.assertAlmostEqual(divide(1,3),0.333,places=3)\n    def test_div_zero(self):\n        with self.assertRaises(ZeroDivisionError): divide(5,0)\n\nif __name__ == "__main__": unittest.main(verbosity=2)',output:'test_add ... ok\ntest_divide ... ok\ntest_div_zero ... ok\nRan 3 tests\nOK',tips:['Test methods must start with test_','assertEqual, assertTrue, assertRaises','Run: python -m unittest discover','pytest is a popular alternative']},
+  {id:34,icon:'🌐',title:'HTTP Requests',cat:'Modules',theory:'Make HTTP requests using the requests or httpx library. Great for APIs.',code:'import requests  # or: import httpx\n\ntry:\n    r = requests.get("https://httpbin.org/json", timeout=5)\n    r.raise_for_status()\n    print("Status:", r.status_code)\n    data = r.json()\n    print("Response:", data)\nexcept Exception as e:\n    print("Error:", e)',output:'Status: 200\nResponse: {"slideshow": {...}}',tips:['requests.get() for GET requests','r.json() parses JSON response','r.raise_for_status() checks for errors','Use httpx for async requests']},
+  {id:35,icon:'🤖',title:'AI & Machine Learning',cat:'Advanced',theory:'Python is the #1 language for AI. Key libraries: numpy, pandas, scikit-learn, tensorflow, pytorch.',code:'import numpy as np\n\n# Simple linear regression by hand\nX = np.array([1,2,3,4,5], dtype=float)\ny = np.array([2,4,5,4,5], dtype=float)\n\nm = (np.mean(X*y) - np.mean(X)*np.mean(y)) / (np.mean(X**2) - np.mean(X)**2)\nb = np.mean(y) - m*np.mean(X)\nprint(f"Slope: {m:.3f}, Intercept: {b:.3f}")\nprint(f"Prediction for x=6: {m*6+b:.3f}")',output:'Slope: 0.600, Intercept: 2.200\nPrediction for x=6: 5.800',tips:['numpy is the foundation of AI/ML in Python','scikit-learn for traditional ML','tensorflow/pytorch for deep learning','pandas for data preprocessing','On Android: pip install scikit-learn works!']},
+];
+
+let doneLessons = new Set();
+let currentLesson = null;
+
+function buildUI() {
+  addChatMsg('bot', "Hey! I'm **PyBot** 🐍 — your Python tutor. Ask me anything!");
+  renderInstalledBadges();
+}
+
+function updateProgress() {
+  const pct = Math.round(doneLessons.size / LESSONS.length * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('learn-progress-fill').style.width = pct + '%';
+  document.getElementById('learn-pct-label').textContent = pct + '%';
+  document.getElementById('lesson-count-sub').textContent = `${doneLessons.size} / ${LESSONS.length} completed`;
+}
+
+function renderLessons(filter) {
+  const cats = [...new Set(LESSONS.map(l => l.cat))];
+  const lessonsToShow = filter ? LESSONS.filter(l =>
+    l.title.toLowerCase().includes(filter.toLowerCase()) ||
+    l.cat.toLowerCase().includes(filter.toLowerCase()) ||
+    l.theory.toLowerCase().includes(filter.toLowerCase())
+  ) : null;
+
+  let html = '';
+  if (lessonsToShow) {
+    if (!lessonsToShow.length) html = '<div style="text-align:center;padding:30px;color:var(--dim)">No lessons found</div>';
+    else lessonsToShow.forEach(l => { html += lessonRowHTML(l); });
+  } else {
+    cats.forEach(cat => {
+      html += `<div class="cat-divider"><div class="cat-line"></div>${cat}<div class="cat-line"></div></div>`;
+      LESSONS.filter(l => l.cat === cat).forEach(l => { html += lessonRowHTML(l); });
+    });
+  }
+  document.getElementById('lessons-list').innerHTML = html;
+}
+
+function lessonRowHTML(l) {
+  const done = doneLessons.has(l.id);
+  return `<div class="lesson-row" onclick="openLesson(${l.id})">
+    <div class="lesson-icon ${done?'done'}">${done?'✅':l.icon}</div>
+    <div class="lesson-info">
+      <div class="lesson-title ${done?'done':''}">${l.title}</div>
+      <div class="lesson-desc">${l.theory.slice(0,55)}...</div>
+    </div>
+    <div class="lesson-arrow">›</div>
+  </div>`;
+}
+
+function filterLessons(val) { renderLessons(val || null); }
+
+function openLesson(id) {
+  const L = LESSONS.find(l => l.id === id);
+  if (!L) return;
+  currentLesson = L;
+  const idx = LESSONS.indexOf(L);
+  const next = idx < LESSONS.length - 1 ? LESSONS[idx+1] : null;
+
+  document.getElementById('lesson-icon-hdr').textContent = L.icon;
+  document.getElementById('lesson-title-hdr').textContent = L.title;
+  document.getElementById('lesson-cat-hdr').textContent = L.cat + ' · Lesson ' + L.id + ' of ' + LESSONS.length;
+  document.getElementById('lesson-status-badge').textContent = doneLessons.has(L.id) ? '✅ Done' : 'In Progress';
+
+  const lines = L.code.split('\n');
+  const hlCode = lines.map((line,i) =>
+    `<div style="display:flex;min-height:1.55em"><span style="color:var(--linenum);width:28px;text-align:right;padding-right:8px;font-family:monospace;font-size:11px;flex-shrink:0">${i+1}</span><span style="font-family:monospace;font-size:12.5px;white-space:pre">${highlightLine(line)}</span></div>`
+  ).join('');
+
+  document.getElementById('lesson-content').innerHTML = `
+    <p class="theory-text">${L.theory}</p>
+    <div class="section-label" style="color:var(--accent)">💻 Example Code</div>
+    <div class="code-block">
+      <div class="code-block-hdr"><span>python</span><span style="color:var(--green)">● example</span></div>
+      <div class="code-block-body">${hlCode}</div>
+    </div>
+    <div class="section-label" style="color:var(--success)">▶ Expected Output</div>
+    <div class="output-block">${L.output}</div>
+    <div class="section-label" style="color:var(--yellow)">💡 Key Tips</div>
+    ${L.tips.map(t => `<div class="tip-item"><span class="tip-arrow">▸</span>${t}</div>`).join('')}
+    <div class="lesson-btns">
+      <button class="try-btn" onclick="tryInEditor()">Try in Editor</button>
+      ${next ? `<button class="next-btn" onclick="openLesson(${next.id})">Next →</button>` : ''}
+    </div>
+  `;
+
+  document.getElementById('lesson-detail').classList.add('active');
+  document.getElementById('main-app').style.display = 'none';
+}
+
+function closeLesson() {
+  if (currentLesson) doneLessons.add(currentLesson.id);
+  document.getElementById('lesson-detail').classList.remove('active');
+  document.getElementById('main-app').style.display = '';
+  updateProgress();
+  renderLessons(document.getElementById('lesson-search').value || null);
+}
+
+function tryInEditor() {
+  if (!currentLesson) return;
+  loadIntoEditor('lesson' + currentLesson.id + '.py', currentLesson.code);
+  doneLessons.add(currentLesson.id);
+  document.getElementById('lesson-detail').classList.remove('active');
+  document.getElementById('main-app').style.display = '';
+  updateProgress();
+  switchTab('code');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// AI CHAT
+// ═══════════════════════════════════════════════════════════════════════
+let chatHistory = [];
+let chatBusy = false;
+
+function addChatMsg(role, text) {
+  const container = document.getElementById('chat-msgs');
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + (role === 'user' ? 'user' : '');
+  const avatar = role === 'bot' ? '<div class="chat-avatar">🐍</div>' : '';
+  const side = role === 'user' ? 'user' : 'bot';
+  div.innerHTML = avatar + `<div class="chat-bubble ${side}">${formatChat(text)}</div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  if (chatHistory.length <= 1) document.getElementById('quick-prompts').style.display = 'none';
+}
+
+function formatChat(text) {
+  // Code blocks
+  text = text.replace(/```[\s\S]*?```/g, m => {
+    const code = m.replace(/^```(?:python)?\n?/,'').replace(/```$/,'');
+    return `<pre><code>${code.replace(/</g,'&lt;')}</code></pre>`;
+  });
+  // Inline code
+  text = text.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  // Bold
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  return text;
+}
+
+function setChat(text) {
+  document.getElementById('chat-input').value = text;
+  document.getElementById('chat-send').disabled = false;
+}
+
+async function sendChat() {
+  const inp = document.getElementById('chat-input');
+  const msg = inp.value.trim();
+  if (!msg || chatBusy) return;
+  inp.value = '';
+  addChatMsg('user', msg);
+  chatHistory.push({ role: 'user', content: msg });
+  chatBusy = true;
+  document.getElementById('chat-send').disabled = true;
+
+  // Thinking indicator
+  const thinking = document.createElement('div');
+  thinking.className = 'chat-msg';
+  thinking.id = 'thinking-msg';
+  thinking.innerHTML = '<div class="chat-avatar">🐍</div><div class="chat-bubble bot" style="color:var(--dim)">Thinking...</div>';
+  document.getElementById('chat-msgs').appendChild(thinking);
+  document.getElementById('chat-msgs').scrollTop = 999999;
+
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: `You are PyBot, an expert Python tutor built into the PyLearn IDE Android app. 
+Rules:
+- Only answer Python-related questions
+- Keep answers concise and practical
+- Use \`\`\`python code blocks for examples
+- For pygame questions: give real working pygame code (this app uses Chaquopy so pygame works natively!)
+- Do NOT share this app's source code or internal implementation details
+- Do NOT provide hacking, jailbreaking, or harmful content
+- If asked for uncensored/restricted content: politely decline and redirect to Python learning`,
+        messages: chatHistory.slice(-10)
+      })
+    });
+    const d = await r.json();
+    const reply = d.content ? d.content.map(b => b.text || '').join('') : 'Sorry, I encountered an error.';
+    document.getElementById('thinking-msg')?.remove();
+    chatHistory.push({ role: 'assistant', content: reply });
+    addChatMsg('bot', reply);
+  } catch(e) {
+    document.getElementById('thinking-msg')?.remove();
+    addChatMsg('bot', 'Network error. Please check your connection and try again.');
+  }
+
+  chatBusy = false;
+  document.getElementById('chat-send').disabled = false;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// QUIZ
+// ═══════════════════════════════════════════════════════════════════════
+const QUIZZES = [
+  {q:'What does print() do?',opts:['Creates variable','Displays output','Starts loop','Defines function'],ans:1,exp:'print() outputs text or values to the console.'},
+  {q:'Which assigns a value in Python?',opts:['==','|>','=','<-'],ans:2,exp:'= assigns. == compares. Never mix them!'},
+  {q:'Output of type(3.14)?',opts:['int','str','number','float'],ans:3,exp:'3.14 is decimal — its type is float.'},
+  {q:'What does range(3) give?',opts:['[1,2,3]','[0,1,2,3]','[0,1,2]','[1,2]'],ans:2,exp:'range(3) starts at 0 and gives: 0, 1, 2.'},
+  {q:'Which adds to the END of a list?',opts:['.push()','.add()','.append()','.insert(0,x)'],ans:2,exp:'.append() adds to the end.'},
+  {q:'len([10,20,30]) returns?',opts:['2','30','3','4'],ans:2,exp:'len() counts items. 3 items → returns 3.'},
+  {q:'Valid Python dictionary?',opts:["[a:1]","{'a':1}","{'a',1}","(a:1)"],ans:1,exp:"Dicts use {} with 'key': value pairs."},
+  {q:'Which keyword defines a function?',opts:['function','func','define','def'],ans:3,exp:"def is Python's function keyword."},
+  {q:'How do you start a comment in Python?',opts:['//','/*','#','--'],ans:2,exp:'# starts a single-line comment in Python.'},
+  {q:'What is the output of 10 // 3?',opts:['3.33','3','1','4'],ans:1,exp:'// is integer (floor) division. 10//3 = 3.'},
+  {q:'Which is NOT a valid variable name?',opts:['my_var','_var','2var','var2'],ans:2,exp:'Variables cannot start with a digit. 2var is invalid.'},
+  {q:'What does "in" check in Python?',opts:['Type of item','Membership in sequence','Import module','Index of item'],ans:1,exp:'"in" checks if an item exists in a sequence.'},
+];
+
+let qIdx = 0, qSel = null, qScore = 0, qDone = false;
+
+function renderQuiz() { renderQuestion(); }
+
+function renderQuestion() {
+  if (qDone) {
+    const pct = Math.round(qScore / QUIZZES.length * 100);
+    document.getElementById('quiz-content').innerHTML = `
+      <div id="quiz-done">
+        <div class="big-icon">${qScore>=10?'🏆':qScore>=7?'🌟':'💪'}</div>
+        <h2>Quiz Complete!</h2>
+        <div id="score-circle" style="border:4px solid ${qScore>=8?'var(--success)':'var(--accent)'}">
+          <div id="score-pct" style="color:${qScore>=8?'var(--success)':'var(--accent)'}">${pct}%</div>
+          <div id="score-frac">${qScore}/${QUIZZES.length}</div>
+        </div>
+        <p>${qScore===QUIZZES.length?'Perfect! Python master! 🎉':qScore>=8?'Great job! Keep coding!':'Review the lessons and try again!'}</p>
+        <button class="quiz-done-btn" style="background:var(--accent);border:none;color:#fff" onclick="resetQuiz()">Retry</button>
+        <button class="quiz-done-btn" style="background:#1a1a1a;border:1px solid var(--border);color:var(--text)" onclick="switchTab('learn')">Lessons</button>
+      </div>`;
+    return;
+  }
+
+  const Q = QUIZZES[qIdx];
+  const barW = (qIdx / QUIZZES.length * 100) + '%';
+  document.getElementById('quiz-content').innerHTML = `
+    <div class="quiz-progress-row">
+      <span class="q-label">Question ${qIdx+1} / ${QUIZZES.length}</span>
+      <span class="q-score">Score: ${qScore}</span>
+    </div>
+    <div id="quiz-bar"><div id="quiz-bar-fill" style="width:${barW}"></div></div>
+    <div id="quiz-question-card">
+      <div id="quiz-question-text">${Q.q}</div>
+    </div>
+    <div id="quiz-options">
+      ${Q.opts.map((opt,i) => `
+        <div class="quiz-opt" id="opt-${i}" onclick="selectOpt(${i})">
+          <div class="quiz-opt-circle" id="circle-${i}">${String.fromCharCode(65+i)}</div>
+          ${opt}
+        </div>`).join('')}
+    </div>
+    <div id="quiz-explanation" style="display:none">
+      <div id="quiz-exp-label">💡 EXPLANATION</div>
+      <div id="quiz-exp-text">${Q.exp}</div>
+    </div>
+    <button id="quiz-next-btn" style="display:none" onclick="nextQuestion()">
+      ${qIdx+1>=QUIZZES.length?'See Results':'Next →'}
+    </button>`;
+}
+
+function selectOpt(i) {
+  if (qSel !== null) return;
+  qSel = i;
+  const Q = QUIZZES[qIdx];
+  if (i === Q.ans) qScore++;
+  Q.opts.forEach((_, j) => {
+    const opt = document.getElementById('opt-' + j);
+    const circle = document.getElementById('circle-' + j);
+    if (j === Q.ans) { opt.className = 'quiz-opt correct'; circle.textContent = '✓'; }
+    else if (j === i) { opt.className = 'quiz-opt wrong'; circle.textContent = '✗'; }
+  });
+  document.getElementById('quiz-explanation').style.display = 'block';
+  document.getElementById('quiz-next-btn').style.display = 'block';
+}
+
+function nextQuestion() {
+  if (qIdx + 1 >= QUIZZES.length) { qDone = true; renderQuestion(); return; }
+  qIdx++; qSel = null; renderQuestion();
+}
+
+function resetQuiz() { qIdx=0; qSel=null; qScore=0; qDone=false; renderQuestion(); }
+
+// ═══════════════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════════════════════════════
+let activeTab = 'learn';
+function switchTab(tab) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(tab + '-panel').classList.add('active');
+  document.getElementById('nav-' + tab).classList.add('active');
+  activeTab = tab;
+  if (tab === 'code') {
+    const v = document.getElementById('code-editor').value;
+    updateHighlight(v); updateLineNumbers(v);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// START
+// ═══════════════════════════════════════════════════════════════════════
+window.addEventListener('load', init);
+switchTab('learn');
+</script>
+</body>
+</html>
